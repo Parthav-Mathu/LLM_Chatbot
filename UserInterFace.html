@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Local Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --border-color: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 450px;
+            height: 700px;
+            background: var(--bg-primary);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .chat-header {
+            background: var(--primary-gradient);
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .bot-avatar {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .bot-avatar svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        .bot-name {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .bot-status {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.1);
+            }
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .welcome-message .icon {
+            width: 64px;
+            height: 64px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .welcome-message .icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        .welcome-message h3 {
+            color: var(--text-primary);
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .welcome-message p {
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: messageSlide 0.4s ease-out;
+        }
+
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--secondary-gradient);
+        }
+
+        .message.bot .message-avatar {
+            background: var(--primary-gradient);
+        }
+
+        .message-avatar svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: var(--primary-gradient);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+            box-shadow: var(--shadow);
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 0;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-8px);
+                opacity: 1;
+            }
+        }
+
+        .chat-input {
+            padding: 20px 24px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 24px;
+            padding: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .message-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+
+        .message-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .input-button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mic-button {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .mic-button:hover {
+            background: #d97706;
+            transform: scale(1.05);
+        }
+
+        .mic-button.recording {
+            background: var(--error-color);
+            animation: recordingPulse 1s infinite;
+        }
+
+        @keyframes recordingPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .upload-button {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .upload-button:hover {
+            background: #059669;
+            transform: scale(1.05);
+        }
+
+        .upload-button.uploading {
+            background: #3b82f6;
+            animation: uploadingPulse 1s infinite;
+        }
+
+        @keyframes uploadingPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+        }
+
+        .send-button {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .send-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .input-button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .recording-timer {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--error-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .upload-status {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .chat-container {
+                height: calc(100vh - 20px);
+                border-radius: 16px;
+            }
+            
+            .chat-header {
+                padding: 20px;
+            }
+            
+            .chat-messages {
+                padding: 16px;
+            }
+            
+            .chat-input {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-content">
+                <div class="bot-avatar">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7A7,7 0 0,1 20,14A8,8 0 0,1 12,22A8,8 0 0,1 4,14A7,7 0 0,1 11,7V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M15,13A1,1 0 0,0 16,14A1,1 0 0,0 15,15A1,1 0 0,0 14,14A1,1 0 0,0 15,13M9,13A1,1 0 0,0 10,14A1,1 0 0,0 9,15A1,1 0 0,0 8,14A1,1 0 0,0 9,13Z"/>
+                    </svg>
+                </div>
+                <div class="bot-name">AI Assistant</div>
+                <div class="bot-status">
+                    <div class="status-dot"></div>
+                    Online & Ready
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <div class="icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,1L9,7V9H21M12,14L13.5,12.5L15,14H20V16H15L13.5,17.5L12,16L10.5,17.5L9,16H4V14H9L10.5,12.5L12,14Z"/>
+                    </svg>
+                </div>
+                <h3>Welcome to MEDIBOT AI Assistant!</h3>
+                <p>I'm powered by Mistral 7B and ready to help you with any questions. You can type your message, use the microphone to speak, or upload files for text extraction.</p>
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <div class="input-wrapper">
+                <button class="input-button mic-button" id="micButton" title="Hold to record voice message">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+                    </svg>
+                </button>
+                
+                <button class="input-button upload-button" id="uploadButton" title="Upload document or image for text extraction">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.bmp,.tiff">
+                
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                >
+                <button class="input-button send-button" id="sendButton" title="Send message">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    class ChatBot {
+        constructor() {
+            this.isRecording = false;
+            this.isUploading = false;
+            this.mediaRecorder = null;
+            this.recordingTimer = null;
+            this.recordingStartTime = null;
+
+            this.initElements();
+            this.bindEvents();
+            this.updateSendButton();
+        }
+
+        initElements() {
+            this.chatMessages = document.getElementById('chatMessages');
+            this.messageInput = document.getElementById('messageInput');
+            this.sendButton = document.getElementById('sendButton');
+            this.micButton = document.getElementById('micButton');
+            this.uploadButton = document.getElementById('uploadButton');
+            this.fileInput = document.getElementById('fileInput');
+        }
+
+        bindEvents() {
+            this.sendButton.onclick = () => this.sendMessage();
+
+            this.messageInput.addEventListener('input', () => this.updateSendButton());
+            this.messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+
+            this.micButton.addEventListener('mousedown', () => this.startRecording());
+            this.micButton.addEventListener('mouseup', () => this.stopRecording());
+            this.micButton.addEventListener('mouseleave', () => this.stopRecording());
+
+            this.micButton.addEventListener('touchstart', e => {
+                e.preventDefault();
+                this.startRecording();
+            });
+            this.micButton.addEventListener('touchend', e => {
+                e.preventDefault();
+                this.stopRecording();
+            });
+
+            this.uploadButton.onclick = () => this.fileInput.click();
+            this.fileInput.addEventListener('change', e => this.handleFileUpload(e));
+        }
+
+        updateSendButton() {
+            this.sendButton.disabled = this.messageInput.value.trim() === '';
+        }
+
+        async handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file || this.isUploading) return;
+
+            this.isUploading = true;
+            this.uploadButton.classList.add('uploading');
+            this.showUploadStatus('Uploading...');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const res = await fetch('/extract-text', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+                this.addMessage('bot', ` Extracted text from "${file.name}". Saved as: ${data.output_file}`);
+            } catch (err) {
+                console.error(err);
+                this.addMessage('bot', ` Could not extract text from ${file.name}`);
+            } finally {
+                this.isUploading = false;
+                this.clearUploadStatus();
+                this.uploadButton.classList.remove('uploading');
+                this.fileInput.value = '';
+            }
+        }
+
+        showUploadStatus(msg) {
+            this.clearUploadStatus();
+            const status = document.createElement('div');
+            status.className = 'upload-status';
+            status.textContent = msg;
+            this.uploadButton.appendChild(status);
+        }
+
+        clearUploadStatus() {
+            const status = this.uploadButton.querySelector('.upload-status');
+            if (status) status.remove();
+        }
+
+        async startRecording() {
+            if (this.isRecording) return;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+
+                this.mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+
+                this.mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'audio/wav' });
+                    await this.transcribeAudio(blob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                this.mediaRecorder.start();
+                this.isRecording = true;
+                this.micButton.classList.add('recording');
+                this.startRecordingTimer();
+
+                setTimeout(() => this.stopRecording(), 30000); // max 30 sec
+            } catch (err) {
+                this.showError('Microphone access denied');
+                console.error(err);
+            }
+        }
+
+        stopRecording() {
+            if (!this.isRecording) return;
+            this.isRecording = false;
+            this.clearRecordingTimer();
+            this.micButton.classList.remove('recording');
+            if (this.mediaRecorder?.state !== 'inactive') this.mediaRecorder.stop();
+        }
+
+        startRecordingTimer() {
+            const timer = document.createElement('div');
+            timer.className = 'recording-timer';
+            timer.textContent = '0s';
+            this.micButton.appendChild(timer);
+
+            this.recordingStartTime = Date.now();
+            this.recordingTimer = setInterval(() => {
+                const seconds = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+                timer.textContent = `${seconds}s`;
+            }, 1000);
+        }
+
+        clearRecordingTimer() {
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
+            const timer = this.micButton.querySelector('.recording-timer');
+            if (timer) timer.remove();
+        }
+
+        async transcribeAudio(blob) {
+            const formData = new FormData();
+            formData.append('file', blob, 'speech.wav');
+
+            try {
+                const res = await fetch('/speech-to-text', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Transcription failed');
+                this.messageInput.value = data.text.trim();
+                this.updateSendButton();
+
+                setTimeout(() => this.sendMessage(), 500);
+            } catch (err) {
+                this.addMessage('bot', ' Could not transcribe audio.');
+                console.error(err);
+            }
+        }
+
+        async sendMessage() {
+            const msg = this.messageInput.value.trim();
+            if (!msg) return;
+
+            this.addMessage('user', msg);
+            this.messageInput.value = '';
+            this.updateSendButton();
+
+            const typingMsg = this.addTypingIndicator();
+
+            try {
+                const res = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: msg })
+                });
+
+                const data = await res.json();
+                this.removeTypingIndicator(typingMsg);
+                this.addMessage('bot', data.answer || 'No response received.');
+            } catch (err) {
+                this.removeTypingIndicator(typingMsg);
+                this.addMessage('bot', ' Error while processing your message.');
+                console.error(err);
+            }
+        }
+
+        addMessage(sender, text) {
+            const welcome = this.chatMessages.querySelector('.welcome-message');
+            if (welcome) welcome.remove();
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+
+            avatar.innerHTML = sender === 'user'
+                ? `<svg viewBox="0 0 24 24"><path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/></svg>`
+                : `<svg viewBox="0 0 24 24"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7A7,7 0 0,1 20,14A8,8 0 0,1 12,22A8,8 0 0,1 4,14A7,7 0 0,1 11,7V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2Z"/></svg>`;
+
+            const msgText = document.createElement('div');
+            msgText.className = 'message-text';
+            msgText.textContent = text;
+
+            msgDiv.appendChild(avatar);
+            msgDiv.appendChild(msgText);
+            this.chatMessages.appendChild(msgDiv);
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        }
+
+        addTypingIndicator() {
+            const div = document.createElement('div');
+            div.className = 'message bot typing';
+            div.textContent = 'Typing...';
+            this.chatMessages.appendChild(div);
+            return div;
+        }
+
+        removeTypingIndicator(div) {
+            if (div && div.parentNode) div.remove();
+        }
+
+        showError(text) {
+            this.addMessage('bot', ` ${text}`);
+        }
+
+        showSuccessMessage(text) {
+            this.addMessage('bot', ` ${text}`);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        window.chatBot = new ChatBot();
+    });
+</script>
